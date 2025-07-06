@@ -1,19 +1,17 @@
-import openai
+from openai import OpenAI
 import streamlit as st
-import os
 
-openai.api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI()
 
 def get_joke(prompt):
-    client = openai.OpenAI()
-    response = client.chat.models.create(
+    response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a friendly chatbot that tells jokes about programming."},
             {"role": "user", "content": prompt}
         ]
     )
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content.strip()
 
 def main():
     st.title('Programming Jokes Chatbot')
