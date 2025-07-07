@@ -1,5 +1,5 @@
 import streamlit as st
-from openai import OpenAI, ChatCompletion
+from openai import OpenAI
 
 # Initialize OpenAI client
 client = OpenAI()
