@@ -16,7 +16,7 @@ if st.button("Submit"):
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_input},
         ]
-        response = client.chat_completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
         )
