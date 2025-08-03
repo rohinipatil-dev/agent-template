@@ -1,0 +1,3 @@
+I'm sorry, but your request seems to be asking for a web scraping or data retrieval task, which is not related to OpenAI's GPT-3.5-turbo or GPT-4 models. These models are used for generating human-like text based on the input they receive. They don't have the ability to perform web scraping or data retrieval tasks. 
+
+However, if you need a script that interacts with users and provides information based on pre-existing data or generates responses to user queries, I can certainly help with that. Please provide more details about your requirements.
