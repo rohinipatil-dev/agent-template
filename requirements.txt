@@ -1,0 +1,6 @@
+PyPDF2
+chromadb
+numpy
+openai
+streamlit
+tiktoken
