@@ -1,7 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from PyPDF2 import PdfReader
-from tiktoken import Tokenizer
+import tiktoken
 import chromadb
 
 # Initialize OpenAI client
