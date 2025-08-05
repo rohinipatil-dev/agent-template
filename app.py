@@ -1,84 +1,64 @@
+import os
 import streamlit as st
-from openai import OpenAI
-from PyPDF2 import PdfReader
+from io import BytesIO
+import PyPDF2
+
 import chromadb
-from chromadb.config import Settings
-import tiktoken
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
-# Initialize OpenAI client
-client = OpenAI()
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from openai import OpenAI
 
-# Initialize ChromaDB client
-chroma_client = chromadb.PersistentClient(path="./chroma_db")
-collection = chroma_client.get_or_create_collection(name="docs")
+# Set your OpenAI API Key
+openai_api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=openai_api_key)
 
-def extract_text_from_pdf(uploaded_file):
-    pdf = PdfReader(uploaded_file)
-    text = ""
-    for page in pdf.pages:
-        text += page.extract_text()
-    return text
+# Initialize ChromaDB with OpenAI embeddings
+embedding_fn = OpenAIEmbeddingFunction(api_key=openai_api_key)
+chroma_client = chromadb.Client()
+collection = chroma_client.get_or_create_collection(name="pdf_chunks", embedding_function=embedding_fn)
 
-def chunk_text(text, chunk_size=500):
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+# Streamlit UI
+st.title("PDF Question Answering (RAG using ChromaDB)")
 
-def generate_embeddings(chunks):
-    embeddings = []
-    for chunk in chunks:
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=chunk
-        )
-        embeddings.append(response.data[0].embedding)
-    return embeddings
+uploaded_file = st.file_uploader("Upload PDF", type="pdf")
 
-def store_in_chromadb(chunks, embeddings):
-    ids = [f"id_{i}" for i in range(len(chunks))]
-    collection.add(
-        documents=chunks,
-        embeddings=embeddings,
-        ids=ids
-    )
+def extract_text(pdf_file):
+    reader = PyPDF2.PdfReader(BytesIO(pdf_file.read()))
+    return " ".join(page.extract_text() or "" for page in reader.pages)
 
-def retrieve_relevant_chunks(query_embedding, n_results=3):
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results
-    )
-    return [result.document for result in results]
+def chunk_text(text):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+    return splitter.split_text(text)
 
-def generate_answer(context, query):
+def store_chunks(chunks):
+    ids = [f"chunk_{i}" for i in range(len(chunks))]
+    collection.add(documents=chunks, ids=ids)
+
+def retrieve_relevant_chunks(query, top_k=3):
+    results = collection.query(query_texts=[query], n_results=top_k)
+    return results["documents"][0] if results["documents"] else []
+
+def generate_answer(query, relevant_chunks):
+    context = "\n\n".join(relevant_chunks)
+    prompt = f"Use the following content to answer the question.\n\n{context}\n\nQuestion: {query}"
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": context},
-            {"role": "user", "content": query}
-        ]
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip()
 
-def main():
-    st.title("AI Agent with RAG model")
-    uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
-    if uploaded_file is not None:
-        text = extract_text_from_pdf(uploaded_file)
-        chunks = chunk_text(text)
-        embeddings = generate_embeddings(chunks)
-        store_in_chromadb(chunks, embeddings)
-        st.success("PDF uploaded and processed successfully.")
-        
-        query = st.text_input("Enter your question:")
-        if query:
-            encoding = tiktoken.get_encoding("cl100k_base")
-            query_embedding = client.embeddings.create(
-                model="text-embedding-3-small",
-                input=query
-            ).data[0].embedding
-            relevant_chunks = retrieve_relevant_chunks(query_embedding)
-            context = " ".join(relevant_chunks)
-            answer = generate_answer(context, query)
-            st.write(answer)
+if uploaded_file:
+    st.success("PDF uploaded successfully.")
+    pdf_text = extract_text(uploaded_file)
+    chunks = chunk_text(pdf_text)
+    collection.delete()  # Clear previous data
+    store_chunks(chunks)
 
-if __name__ == "__main__":
-    main()
+    user_query = st.text_input("Ask a question about the PDF content")
+    if user_query:
+        relevant = retrieve_relevant_chunks(user_query)
+        answer = generate_answer(user_query, relevant)
+        st.markdown("### Answer")
+        st.write(answer)
