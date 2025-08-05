@@ -1,6 +1,0 @@
-PyPDF2
-faiss
-numpy
-openai
-streamlit
-tiktoken
