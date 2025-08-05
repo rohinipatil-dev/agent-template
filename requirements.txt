@@ -1,5 +1,5 @@
-PyPDF2
-chromadb
-openai
 streamlit
-tiktoken
+openai>=1.0.0
+chromadb
+PyPDF2
+langchain
