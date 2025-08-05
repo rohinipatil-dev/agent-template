@@ -1,5 +1,0 @@
-streamlit
-openai>=1.0.0
-chromadb
-PyPDF2
-langchain
